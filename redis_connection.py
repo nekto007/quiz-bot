@@ -1,6 +1,6 @@
 import os
+
 import redis
-import re
 
 HOST = os.environ['HOST']
 PORT = os.environ['PORT']
