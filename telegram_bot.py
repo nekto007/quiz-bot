@@ -3,7 +3,6 @@ import random
 import re
 from functools import partial
 
-import redis
 from environs import Env
 from telegram import Bot, Update
 from telegram.ext import (
@@ -12,10 +11,12 @@ from telegram.ext import (
 
 from quizbot import handlers, static_text
 from quizbot.keyboard_utils import make_keyboard_for_start_command
+from redis_connection import HOST, PASSWORD, PORT, connection
 
 env = Env()
 env.read_env()
 TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
+QUIZ_FILE = os.environ['QUIZ_FILE']
 
 
 def command_start(update: Update, context):
@@ -33,7 +34,7 @@ def command_start(update: Update, context):
 
 
 def get_question_and_answer():
-    with open('./quiz-questions/1vs1200.txt', 'r', encoding='KOI8-R') as file:
+    with open(QUIZ_FILE, 'r', encoding='KOI8-R') as file:
         text = file.read()
     questions = re.findall(r'Вопрос \d+:\s(\D+)\s\sОтвет:', text)
     answers = re.findall(r'Ответ:\s(.+)\s\s', text)
@@ -75,13 +76,7 @@ def quiz_score(update: Update, context):
 
 def main() -> None:
     quiz = get_question_and_answer()
-    pool = redis.ConnectionPool(
-        host='redis-15093.c304.europe-west1-2.gce.cloud.redislabs.com',
-        port=15093,
-        password='m4fyzsvJeUL7oMTorYE7atQDBzCwQ2NG',
-        decode_responses=True)
-    redis_db = redis.Redis(connection_pool=pool)
-
+    redis_db = connection(PORT, HOST, PASSWORD)
     quiz_handler = ConversationHandler(
         entry_points=[CommandHandler('start', command_start)],
         states={
@@ -109,8 +104,6 @@ def main() -> None:
     dp = updater.dispatcher
     dp.add_handler(quiz_handler)
     dp.add_handler(CommandHandler("start", command_start))
-
-    """ Run bot in pooling mode """
 
     bot_info = Bot(TELEGRAM_TOKEN).get_me()
     bot_link = f'https://t.me/{bot_info["username"]}'
