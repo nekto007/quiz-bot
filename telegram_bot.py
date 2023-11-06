@@ -13,6 +13,8 @@ from telegram.ext import (
 from quizbot import handlers, static_text
 from quizbot.keyboard_utils import make_keyboard_for_start_command
 
+env = Env()
+env.read_env()
 
 TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
 QUIZ_FILE = os.environ['QUIZ_FILE']
@@ -76,8 +78,6 @@ def quiz_score(update: Update, context):
 
 
 def main() -> None:
-    env = Env()
-    env.read_env()
     quiz = get_question_and_answer()
     redis_db = redis.Redis(
         host=REDIS_HOST,

@@ -8,6 +8,9 @@ from environs import Env
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.longpoll import VkEventType, VkLongPoll
 
+env = Env()
+env.read_env()
+
 VK_TOKEN = os.environ['VK_TOKEN']
 QUIZ_FILE = os.environ['QUIZ_FILE']
 REDIS_HOST = os.environ['HOST']
@@ -42,12 +45,14 @@ def check_answer(quiz, redis_db, user_id, text, vk):
     reply(user_id, vk, result)
 
 
-def reply(user_id, vk, text, correct_solution=False):
-    keyboard = create_keyboard()
-    vk.messages.send(user_id=user_id,
-                     message=(correct_solution + '\n\n' + text) if correct_solution else text,
-                     keyboard=keyboard.get_keyboard(),
-                     random_id=random.randint(1, 1000))
+def reply(user_id, vk, text):
+    keyboard = create_keyboard()  # Assuming create_keyboard() is defined elsewhere
+    vk.messages.send(
+        user_id=user_id,
+        message=text,
+        keyboard=keyboard.get_keyboard(),
+        random_id=random.randint(1, 1000)
+    )
 
 
 def handle_give_up(vk, quiz, redis_db, user_id):
@@ -88,13 +93,7 @@ def vk_events(longpoll, vk, quiz, redis_db):
             command_functions.get(text, lambda: check_answer(quiz, redis_db, user_id, text, vk))()
 
 
-def reply(user_id, vk, message):
-    vk.messages.send(user_id=user_id, message=message, random_id=random.randint(0, 2 ** 64))
-
-
 def main():
-    env = Env()
-    env.read_env()
     quiz = get_question_and_answer()
     redis_db = redis.Redis(
         host=REDIS_HOST,
