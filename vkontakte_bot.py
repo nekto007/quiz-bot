@@ -4,6 +4,7 @@ import random
 import re
 
 import vk_api
+from environs import Env
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.longpoll import VkEventType, VkLongPoll
 
@@ -19,9 +20,6 @@ def create_keyboard():
     keyboard.add_button('Сдаться', color=VkKeyboardColor.NEGATIVE)
     keyboard.add_button('Мой счёт', color=VkKeyboardColor.PRIMARY)
     return keyboard
-
-
-keyboard = create_keyboard()
 
 
 def new_question_request(vk, quiz, redis_db, user_id, giveup_solution=False):
@@ -45,6 +43,7 @@ def check_answer(quiz, redis_db, user_id, text, vk):
 
 
 def reply(user_id, vk, text, correct_solution=False):
+    keyboard = create_keyboard()
     vk.messages.send(user_id=user_id,
                      message=(correct_solution + '\n\n' + text) if correct_solution else text,
                      keyboard=keyboard.get_keyboard(),
@@ -74,17 +73,20 @@ def vk_events(longpoll, vk, quiz, redis_db):
 
 
 def main():
-    while True:
-        with open(QUIZ_FILE, "r", encoding='utf-8') as quiz_file:
-            quiz = json.load(quiz_file)
+    env = Env()
+    env.read_env()
+    with open(QUIZ_FILE, "r", encoding='KOI8-R') as quiz_file:
+        text = quiz_file.read()
+    questions = re.findall(r'Вопрос \d+:\s(\D+)\s\sОтвет:', text)
+    answers = re.findall(r'Ответ:\s(.+)\s\s', text)
+    questions_and_answers_dict = dict(zip(questions, answers))
+    redis_db = connection(PORT, HOST, PASSWORD)
 
-        redis_db = connection(PORT, HOST, PASSWORD)
+    vk_session = vk_api.VkApi(token=VK_TOKEN)
+    longpoll = VkLongPoll(vk_session)
+    vk = vk_session.get_api()
 
-        vk_session = vk_api.VkApi(token=VK_TOKEN)
-        longpoll = VkLongPoll(vk_session)
-        vk = vk_session.get_api()
-
-        vk_events(longpoll, vk, quiz, redis_db)
+    vk_events(longpoll, vk, questions_and_answers_dict, redis_db)
 
 
 if __name__ == '__main__':
