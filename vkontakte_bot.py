@@ -1,17 +1,18 @@
-import json
 import os
 import random
 import re
 
+import redis
 import vk_api
 from environs import Env
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.longpoll import VkEventType, VkLongPoll
 
-from redis_connection import HOST, PASSWORD, PORT, connection
-
 VK_TOKEN = os.environ['VK_TOKEN']
 QUIZ_FILE = os.environ['QUIZ_FILE']
+REDIS_HOST = os.environ['HOST']
+REDIS_PORT = os.environ['PORT']
+REDIS_PASSWORD = os.environ['PASSWORD']
 
 
 def create_keyboard():
@@ -27,7 +28,6 @@ def new_question_request(vk, quiz, redis_db, user_id, giveup_solution=False):
     correct_solution = quiz.get(question_text)
     redis_db.set(user_id, correct_solution)
     reply(user_id, vk, question_text, giveup_solution)
-    return question_text, correct_solution
 
 
 def check_answer(quiz, redis_db, user_id, text, vk):
@@ -50,15 +50,11 @@ def reply(user_id, vk, text, correct_solution=False):
                      random_id=random.randint(1, 1000))
 
 
-def handle_new_question(vk, quiz, redis_db, user_id):
-    question_text, correct_solution = new_question_request(vk, quiz, redis_db, user_id)
-
-
 def handle_give_up(vk, quiz, redis_db, user_id):
     answer = redis_db.get(user_id)
     if answer:
         giveup_solution = "Правильный ответ: " + answer.decode('utf-8')
-        question_text, correct_solution = new_question_request(vk, quiz, redis_db, user_id, giveup_solution)
+        new_question_request(vk, quiz, redis_db, user_id, giveup_solution)
     else:
         refused_surrendering = 'Вы не можете сдаться, пока не зададите вопрос.'
         reply(user_id, vk, refused_surrendering)
@@ -69,42 +65,47 @@ def handle_greeting(user_id, vk):
     reply(user_id, vk, greeting_text)
 
 
+def get_question_and_answer():
+    with open(QUIZ_FILE, 'r', encoding='KOI8-R') as quiz_file:
+        text = quiz_file.read()
+    questions = re.findall(r'Вопрос \d+:\s(\D+)\s\sОтвет:', text)
+    answers = re.findall(r'Ответ:\s(.+)\s\s', text)
+    questions_and_answers_dict = dict(zip(questions, answers))
+    return questions_and_answers_dict
+
+
 def vk_events(longpoll, vk, quiz, redis_db):
+    command_functions = {
+        "Новый вопрос": lambda: new_question_request(vk, quiz, redis_db, user_id),
+        "Сдаться": lambda: handle_give_up(vk, quiz, redis_db, user_id),
+        "Привет": lambda: handle_greeting(user_id, vk)
+    }
+
     for event in longpoll.listen():
         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
             text = event.text
             user_id = event.user_id
-
-            if text == "Новый вопрос":
-                handle_new_question(vk, quiz, redis_db, user_id)
-            elif text == "Сдаться":
-                handle_give_up(vk, quiz, redis_db, user_id)
-            elif text == "Привет":
-                handle_greeting(user_id, vk)
-            else:
-                check_answer(quiz, redis_db, user_id, text, vk)
+            command_functions.get(text, lambda: check_answer(quiz, redis_db, user_id, text, vk))()
 
 
 def reply(user_id, vk, message):
-    vk.messages.send(user_id=user_id, message=message, random_id=random.randint(0, 2**64))
-
+    vk.messages.send(user_id=user_id, message=message, random_id=random.randint(0, 2 ** 64))
 
 
 def main():
     env = Env()
     env.read_env()
-    with open(QUIZ_FILE, "r", encoding='KOI8-R') as quiz_file:
-        text = quiz_file.read()
-    questions = re.findall(r'Вопрос \d+:\s(\D+)\s\sОтвет:', text)
-    answers = re.findall(r'Ответ:\s(.+)\s\s', text)
-    questions_and_answers_dict = dict(zip(questions, answers))
-    redis_db = connection(PORT, HOST, PASSWORD)
+    quiz = get_question_and_answer()
+    redis_db = redis.Redis(
+        host=REDIS_HOST,
+        port=REDIS_PORT,
+        password=REDIS_PASSWORD)
 
     vk_session = vk_api.VkApi(token=VK_TOKEN)
     longpoll = VkLongPoll(vk_session)
     vk = vk_session.get_api()
 
-    vk_events(longpoll, vk, questions_and_answers_dict, redis_db)
+    vk_events(longpoll, vk, quiz, redis_db)
 
 
 if __name__ == '__main__':

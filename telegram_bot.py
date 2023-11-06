@@ -3,6 +3,7 @@ import random
 import re
 from functools import partial
 
+import redis
 from environs import Env
 from telegram import Bot, Update
 from telegram.ext import (
@@ -11,11 +12,13 @@ from telegram.ext import (
 
 from quizbot import handlers, static_text
 from quizbot.keyboard_utils import make_keyboard_for_start_command
-from redis_connection import HOST, PASSWORD, PORT, connection
 
 
 TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
 QUIZ_FILE = os.environ['QUIZ_FILE']
+REDIS_HOST = os.environ['HOST']
+REDIS_PORT = os.environ['PORT']
+REDIS_PASSWORD = os.environ['PASSWORD']
 
 
 def command_start(update: Update, context):
@@ -76,7 +79,10 @@ def main() -> None:
     env = Env()
     env.read_env()
     quiz = get_question_and_answer()
-    redis_db = connection(PORT, HOST, PASSWORD)
+    redis_db = redis.Redis(
+        host=REDIS_HOST,
+        port=REDIS_PORT,
+        password=REDIS_PASSWORD)
     quiz_handler = ConversationHandler(
         entry_points=[CommandHandler('start', command_start)],
         states={
