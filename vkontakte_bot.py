@@ -35,7 +35,7 @@ def check_answer(quiz, redis_db, user_id, text, vk):
     correct_solution = quiz.get(user_question)
     user_answer = text.split()
     match = any(re.search(rf"\b{answer}\b", correct_solution, re.IGNORECASE) for answer in user_answer)
-    if match is False:
+    if not match:
         result = 'Неправильно… Попробуешь ещё раз?'
     else:
         result = 'Правильно! Поздравляю! Для следующего вопроса нажми «Новый вопрос»'
@@ -50,26 +50,44 @@ def reply(user_id, vk, text, correct_solution=False):
                      random_id=random.randint(1, 1000))
 
 
+def handle_new_question(vk, quiz, redis_db, user_id):
+    question_text, correct_solution = new_question_request(vk, quiz, redis_db, user_id)
+
+
+def handle_give_up(vk, quiz, redis_db, user_id):
+    answer = redis_db.get(user_id)
+    if answer:
+        giveup_solution = "Правильный ответ: " + answer.decode('utf-8')
+        question_text, correct_solution = new_question_request(vk, quiz, redis_db, user_id, giveup_solution)
+    else:
+        refused_surrendering = 'Вы не можете сдаться, пока не зададите вопрос.'
+        reply(user_id, vk, refused_surrendering)
+
+
+def handle_greeting(user_id, vk):
+    greeting_text = "Привет! Я бот для викторин. Нажми кнопку «Новый вопрос», чтобы проверить свои знания."
+    reply(user_id, vk, greeting_text)
+
+
 def vk_events(longpoll, vk, quiz, redis_db):
     for event in longpoll.listen():
         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
             text = event.text
             user_id = event.user_id
+
             if text == "Новый вопрос":
-                question_text, correct_solution = new_question_request(vk, quiz, redis_db, user_id)
+                handle_new_question(vk, quiz, redis_db, user_id)
             elif text == "Сдаться":
-                try:
-                    giveup_solution = "Правильный ответ: " + redis_db.get(user_id).decode('utf-8')
-                    question_text, correct_solution = new_question_request(vk, quiz, redis_db, user_id,
-                                                                           giveup_solution)
-                except UnboundLocalError:
-                    refused_surrendering = 'Вы не можете сдаться, пока не зададите вопрос.'
-                    reply(user_id, vk, refused_surrendering)
+                handle_give_up(vk, quiz, redis_db, user_id)
             elif text == "Привет":
-                greeting_text = "Привет! Я бот для викторин. Нажми кнопку «Новый вопрос», чтобы проверить свои знания."
-                reply(user_id, vk, greeting_text)
+                handle_greeting(user_id, vk)
             else:
                 check_answer(quiz, redis_db, user_id, text, vk)
+
+
+def reply(user_id, vk, message):
+    vk.messages.send(user_id=user_id, message=message, random_id=random.randint(0, 2**64))
+
 
 
 def main():
