@@ -13,14 +13,12 @@ from quizbot import handlers, static_text
 from quizbot.keyboard_utils import make_keyboard_for_start_command
 from redis_connection import HOST, PASSWORD, PORT, connection
 
-env = Env()
-env.read_env()
+
 TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
 QUIZ_FILE = os.environ['QUIZ_FILE']
 
 
 def command_start(update: Update, context):
-    print('command_start')
     user_info = update.message.from_user.to_dict()
     text = static_text.start_created.format(
         first_name=user_info['first_name']
@@ -34,8 +32,8 @@ def command_start(update: Update, context):
 
 
 def get_question_and_answer():
-    with open(QUIZ_FILE, 'r', encoding='KOI8-R') as file:
-        text = file.read()
+    with open(QUIZ_FILE, 'r', encoding='KOI8-R') as quiz_file:
+        text = quiz_file.read()
     questions = re.findall(r'Вопрос \d+:\s(\D+)\s\sОтвет:', text)
     answers = re.findall(r'Ответ:\s(.+)\s\s', text)
     questions_and_answers_dict = dict(zip(questions, answers))
@@ -75,6 +73,8 @@ def quiz_score(update: Update, context):
 
 
 def main() -> None:
+    env = Env()
+    env.read_env()
     quiz = get_question_and_answer()
     redis_db = connection(PORT, HOST, PASSWORD)
     quiz_handler = ConversationHandler(
