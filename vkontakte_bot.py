@@ -8,14 +8,7 @@ from environs import Env
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.longpoll import VkEventType, VkLongPoll
 
-env = Env()
-env.read_env()
-
-VK_TOKEN = os.environ['VK_TOKEN']
-QUIZ_FILE = os.environ['QUIZ_FILE']
-REDIS_HOST = os.environ['HOST']
-REDIS_PORT = os.environ['PORT']
-REDIS_PASSWORD = os.environ['PASSWORD']
+from parsing import get_question_and_answer
 
 
 def create_keyboard():
@@ -70,15 +63,6 @@ def handle_greeting(user_id, vk):
     reply(user_id, vk, greeting_text)
 
 
-def get_question_and_answer():
-    with open(QUIZ_FILE, 'r', encoding='KOI8-R') as quiz_file:
-        text = quiz_file.read()
-    questions = re.findall(r'Вопрос \d+:\s(\D+)\s\sОтвет:', text)
-    answers = re.findall(r'Ответ:\s(.+)\s\s', text)
-    questions_and_answers_dict = dict(zip(questions, answers))
-    return questions_and_answers_dict
-
-
 def vk_events(longpoll, vk, quiz, redis_db):
     command_functions = {
         "Новый вопрос": lambda: new_question_request(vk, quiz, redis_db, user_id),
@@ -94,7 +78,16 @@ def vk_events(longpoll, vk, quiz, redis_db):
 
 
 def main():
-    quiz = get_question_and_answer()
+    env = Env()
+    env.read_env()
+
+    VK_TOKEN = os.environ['VK_TOKEN']
+    QUIZ_FILE = os.environ['QUIZ_FILE']
+    REDIS_HOST = os.environ['HOST']
+    REDIS_PORT = os.environ['PORT']
+    REDIS_PASSWORD = os.environ['PASSWORD']
+
+    quiz = get_question_and_answer(QUIZ_FILE)
     redis_db = redis.Redis(
         host=REDIS_HOST,
         port=REDIS_PORT,

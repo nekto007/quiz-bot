@@ -10,17 +10,9 @@ from telegram.ext import (
     CommandHandler, ConversationHandler, Filters, MessageHandler, Updater,
 )
 
+from parsing import get_question_and_answer
 from quizbot import handlers, static_text
 from quizbot.keyboard_utils import make_keyboard_for_start_command
-
-env = Env()
-env.read_env()
-
-TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
-QUIZ_FILE = os.environ['QUIZ_FILE']
-REDIS_HOST = os.environ['HOST']
-REDIS_PORT = os.environ['PORT']
-REDIS_PASSWORD = os.environ['PASSWORD']
 
 
 def command_start(update: Update, context):
@@ -34,15 +26,6 @@ def command_start(update: Update, context):
 
     )
     return handlers.NEW_QUESTION
-
-
-def get_question_and_answer():
-    with open(QUIZ_FILE, 'r', encoding='KOI8-R') as quiz_file:
-        text = quiz_file.read()
-    questions = re.findall(r'Вопрос \d+:\s(\D+)\s\sОтвет:', text)
-    answers = re.findall(r'Ответ:\s(.+)\s\s', text)
-    questions_and_answers_dict = dict(zip(questions, answers))
-    return questions_and_answers_dict
 
 
 def get_new_question(quiz: dict, redis_db, update: Update, context):
@@ -78,7 +61,16 @@ def quiz_score(update: Update, context):
 
 
 def main() -> None:
-    quiz = get_question_and_answer()
+    env = Env()
+    env.read_env()
+
+    TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
+    QUIZ_FILE = os.environ['QUIZ_FILE']
+    REDIS_HOST = os.environ['HOST']
+    REDIS_PORT = os.environ['PORT']
+    REDIS_PASSWORD = os.environ['PASSWORD']
+
+    quiz = get_question_and_answer(QUIZ_FILE)
     redis_db = redis.Redis(
         host=REDIS_HOST,
         port=REDIS_PORT,
