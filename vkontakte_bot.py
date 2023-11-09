@@ -8,7 +8,7 @@ from environs import Env
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.longpoll import VkEventType, VkLongPoll
 
-from parsing import get_question_and_answer
+from parsing_quiz_file import get_question_and_answer
 
 
 def create_keyboard():

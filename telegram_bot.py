@@ -10,7 +10,7 @@ from telegram.ext import (
     CommandHandler, ConversationHandler, Filters, MessageHandler, Updater,
 )
 
-from parsing import get_question_and_answer
+from parsing_quiz_file import get_question_and_answer
 from quizbot import handlers, static_text
 from quizbot.keyboard_utils import make_keyboard_for_start_command
 
