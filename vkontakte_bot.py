@@ -19,7 +19,7 @@ def create_keyboard():
     return keyboard
 
 
-def new_question_request(vk, quiz, redis_db, user_id, giveup_solution=False):
+def request_new_question(vk, quiz, redis_db, user_id, giveup_solution=False):
     question_text = random.choice(list(quiz.keys()))
     correct_solution = quiz.get(question_text)
     redis_db.set(user_id, correct_solution)
@@ -52,7 +52,7 @@ def handle_give_up(vk, quiz, redis_db, user_id):
     answer = redis_db.get(user_id)
     if answer:
         giveup_solution = "Правильный ответ: " + answer.decode('utf-8')
-        new_question_request(vk, quiz, redis_db, user_id, giveup_solution)
+        request_new_question(vk, quiz, redis_db, user_id, giveup_solution)
     else:
         refused_surrendering = 'Вы не можете сдаться, пока не зададите вопрос.'
         reply(user_id, vk, refused_surrendering)
@@ -63,9 +63,9 @@ def handle_greeting(user_id, vk):
     reply(user_id, vk, greeting_text)
 
 
-def vk_events(longpoll, vk, quiz, redis_db):
+def listen_vk_events(longpoll, vk, quiz, redis_db):
     command_functions = {
-        "Новый вопрос": lambda: new_question_request(vk, quiz, redis_db, user_id),
+        "Новый вопрос": lambda: request_new_question(vk, quiz, redis_db, user_id),
         "Сдаться": lambda: handle_give_up(vk, quiz, redis_db, user_id),
         "Привет": lambda: handle_greeting(user_id, vk)
     }
@@ -97,7 +97,7 @@ def main():
     longpoll = VkLongPoll(vk_session)
     vk = vk_session.get_api()
 
-    vk_events(longpoll, vk, quiz, redis_db)
+    listen_vk_events(longpoll, vk, quiz, redis_db)
 
 
 if __name__ == '__main__':
