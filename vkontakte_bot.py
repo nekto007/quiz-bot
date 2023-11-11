@@ -81,19 +81,19 @@ def main():
     env = Env()
     env.read_env()
 
-    VK_TOKEN = os.environ['VK_TOKEN']
-    QUIZ_FILE = os.environ['QUIZ_FILE']
-    REDIS_HOST = os.environ['HOST']
-    REDIS_PORT = os.environ['PORT']
-    REDIS_PASSWORD = os.environ['PASSWORD']
+    vk_token = os.environ['VK_TOKEN']
+    quiz_file = os.environ['QUIZ_FILE']
+    redis_host = os.environ['HOST']
+    redis_port = os.environ['PORT']
+    redis_password = os.environ['PASSWORD']
 
-    quiz = get_question_and_answer(QUIZ_FILE)
+    quiz = get_question_and_answer(quiz_file)
     redis_db = redis.Redis(
-        host=REDIS_HOST,
-        port=REDIS_PORT,
-        password=REDIS_PASSWORD)
+        host=redis_host,
+        port=redis_port,
+        password=redis_password)
 
-    vk_session = vk_api.VkApi(token=VK_TOKEN)
+    vk_session = vk_api.VkApi(token=vk_token)
     longpoll = VkLongPoll(vk_session)
     vk = vk_session.get_api()
 

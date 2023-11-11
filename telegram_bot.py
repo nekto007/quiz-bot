@@ -64,17 +64,17 @@ def main() -> None:
     env = Env()
     env.read_env()
 
-    TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
-    QUIZ_FILE = os.environ['QUIZ_FILE']
-    REDIS_HOST = os.environ['HOST']
-    REDIS_PORT = os.environ['PORT']
-    REDIS_PASSWORD = os.environ['PASSWORD']
+    telegram_token = os.environ['TELEGRAM_TOKEN']
+    quiz_file = os.environ['QUIZ_FILE']
+    redis_host = os.environ['HOST']
+    redis_port = os.environ['PORT']
+    redis_password = os.environ['PASSWORD']
 
-    quiz = get_question_and_answer(QUIZ_FILE)
+    quiz = get_question_and_answer(quiz_file)
     redis_db = redis.Redis(
-        host=REDIS_HOST,
-        port=REDIS_PORT,
-        password=REDIS_PASSWORD)
+        host=redis_host,
+        port=redis_port,
+        password=redis_password)
     quiz_handler = ConversationHandler(
         entry_points=[CommandHandler('start', command_start)],
         states={
@@ -98,12 +98,12 @@ def main() -> None:
         },
         fallbacks=[]
     )
-    updater = Updater(TELEGRAM_TOKEN, use_context=True)
+    updater = Updater(telegram_token, use_context=True)
     dp = updater.dispatcher
     dp.add_handler(quiz_handler)
     dp.add_handler(CommandHandler("start", command_start))
 
-    bot_info = Bot(TELEGRAM_TOKEN).get_me()
+    bot_info = Bot(telegram_token).get_me()
     bot_link = f'https://t.me/{bot_info["username"]}'
 
     print(f"Pooling of '{bot_link}' started")
